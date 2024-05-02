@@ -20,34 +20,48 @@ export const newsApis: Record<string, NewsApi> = {
   },
   bbc: {
     searchFunction: bbcNewsApi,
+    domain: "bbc.com",
   },
   abc: {
     searchFunction: abcNewsApi,
+    domain: "abcnews.go.com",
   },
   guardian: {
     searchFunction: guardianNewsApi,
   },
 };
 
+const calculateExcludedDomains = (skip: string[] | undefined) => {
+  return skip
+    ?.map((source) => {
+      return newsApis[source].domain;
+    })
+    .join(",");
+};
+
 export const useGetNews = ({
-  query,
+  query: _query,
   skip,
   page,
   pageSize,
+  from,
+  to,
 }: ParamsType): GetNewsHook => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [news, setNews] = useState<NewsType[]>([]);
+  const query = Boolean(_query) ? _query : "world";
 
   useEffect(() => {
     const fetchNews = async () => {
       setLoading(true);
       setError(null);
-
       try {
         const searchPromises = Object.entries(newsApis)
           .filter(([key]) => !skip?.includes(key))
-          .map(([, api]) => api.searchFunction({ query, page, pageSize }));
+          .map(([, api]) =>
+            api.searchFunction({ query, page, pageSize, from, to, skip }),
+          );
 
         const searchResults = await Promise.all(searchPromises);
         setNews(shuffle(searchResults.flat()));
@@ -59,7 +73,7 @@ export const useGetNews = ({
     };
 
     fetchNews();
-  }, [query, skip?.length]);
+  }, [query, skip?.length, page, query, pageSize, from, to]);
 
   return { loading, error, news };
 };
@@ -68,16 +82,20 @@ async function bbcNewsApi({
   query,
   page,
   pageSize,
+  from,
+  to,
 }: Exclude<ParamsType, "skip">): Promise<NewsType[]> {
   const response = await axios.get(
     process.env.NEXT_PUBLIC_NEWS_API_BASE_URL as string,
     {
       params: {
         sources: "bbc-news",
-        qInTitle: query ?? "world",
+        qInTitle: query,
         apiKey: process.env.NEXT_PUBLIC_NEWS_API_KEY as string,
         page,
         pageSize,
+        from,
+        to,
       },
     },
   );
@@ -86,7 +104,7 @@ async function bbcNewsApi({
     id: uuidv4(),
     title: article.title,
     url: article.url,
-    source: "BBC",
+    source: "bbc",
   }));
 }
 
@@ -94,16 +112,20 @@ async function abcNewsApi({
   query,
   page,
   pageSize,
+  from,
+  to,
 }: Exclude<ParamsType, "skip">): Promise<NewsType[]> {
   const response = await axios.get(
     process.env.NEXT_PUBLIC_NEWS_API_BASE_URL as string,
     {
       params: {
         sources: "abc-news",
-        qInTitle: query ?? "world",
+        qInTitle: query,
         apiKey: process.env.NEXT_PUBLIC_NEWS_API_KEY as string,
         page,
         pageSize,
+        from,
+        to,
       },
     },
   );
@@ -112,7 +134,7 @@ async function abcNewsApi({
     id: uuidv4(),
     title: article.title,
     url: article.url,
-    source: "ABC News",
+    source: "abc",
   }));
 }
 
@@ -120,15 +142,21 @@ async function searchNewsApi({
   query,
   page,
   pageSize,
+  from,
+  to,
+  skip,
 }: Exclude<ParamsType, "skip">): Promise<NewsType[]> {
   const response = await axios.get(
     process.env.NEXT_PUBLIC_NEWS_API_BASE_URL as string,
     {
       params: {
-        qInTitle: query ?? "world",
+        qInTitle: query,
         apiKey: process.env.NEXT_PUBLIC_NEWS_API_KEY as string,
         page,
         pageSize,
+        from,
+        to,
+        excludeDomains: calculateExcludedDomains(skip),
       },
     },
   );
@@ -137,7 +165,7 @@ async function searchNewsApi({
     id: uuidv4(),
     title: article.title,
     url: article.url,
-    source: "World News",
+    source: "news",
   }));
 }
 
@@ -145,15 +173,19 @@ async function guardianNewsApi({
   query,
   page,
   pageSize,
+  from,
+  to,
 }: Exclude<ParamsType, "skip">): Promise<NewsType[]> {
   const response = await axios.get(
     process.env.NEXT_PUBLIC_GUARDIAN_BASE_URL as string,
     {
       params: {
-        q: query ?? "world",
+        q: query,
         "api-key": process.env.NEXT_PUBLIC_GUARDIAN_API_KEY as string,
         page,
         "page-size": pageSize,
+        "from-date": from,
+        "to-date": to,
       },
     },
   );
@@ -162,6 +194,6 @@ async function guardianNewsApi({
     id: uuidv4(),
     title: article.webTitle,
     url: article.webUrl,
-    source: "The Guardian News",
+    source: "guardian",
   }));
 }

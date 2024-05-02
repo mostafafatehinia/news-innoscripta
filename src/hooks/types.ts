@@ -4,6 +4,7 @@ export interface NewsApi {
     page,
     pageSize,
   }: Exclude<ParamsType, "skip">) => Promise<NewsType[]>;
+  domain?: string;
 }
 
 export interface NewsApiArticle {
@@ -39,6 +40,8 @@ export interface ParamsType {
   skip?: string[];
   page?: number;
   pageSize?: number;
+  from?: string;
+  to?: string;
 }
 
 export interface GetNewsHook {

@@ -1,0 +1,12 @@
+version: "1.0"
+
+services:
+  news-app:
+    ports:
+      - 3000:3000
+    expose:
+      - 3000:3000
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: node server.js
